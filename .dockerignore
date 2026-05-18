@@ -1,0 +1,11 @@
+.git
+.github
+node_modules
+dist
+*.md
+run-mcp.sh
+get-refresh-token.cjs
+get-refresh-token-device.cjs
+config.example.json
+server.json
+.npmignore

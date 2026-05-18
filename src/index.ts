@@ -6,7 +6,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { readFileSync, existsSync, createWriteStream } from "fs";
+import { readFileSync, writeFileSync, existsSync, createWriteStream } from "fs";
 import { join, dirname } from "path";
 import { pipeline } from "stream/promises";
 import { createGunzip } from "zlib";
@@ -140,8 +140,7 @@ class BingAdsManager {
     const creds = validateCredentials();
     if (!creds.valid) {
       const msg = `[STARTUP ERROR] Missing required credentials: ${creds.missing.join(", ")}. ` +
-        `Set these environment variables before starting the server.` +
-        (process.platform === "darwin" ? ` On macOS, tokens can be stored in Keychain and loaded via run-mcp.sh.` : "");
+        `Set these environment variables before starting the server.`;
       console.error(msg);
       throw new BingAdsAuthError(msg);
     }
@@ -191,20 +190,25 @@ class BingAdsManager {
     this.accessToken = data.access_token;
     this.tokenExpiry = Date.now() + (data.expires_in - 60) * 1000;
 
-    // Persist rotated refresh token to Keychain so restarts use the latest
+    // Persist rotated refresh token to volume-mounted env file so restarts use the latest.
+    // Set BING_ADS_TOKEN_PATH to the path of the env file (e.g. /run/secrets/bing-ads.env).
     if (data.refresh_token && data.refresh_token !== this.refreshToken) {
       this.refreshToken = data.refresh_token;
-      if (process.platform === "darwin") {
+      const tokenPath = process.env.BING_ADS_TOKEN_PATH;
+      if (tokenPath) {
         try {
-          const { execFileSync } = await import("child_process");
-          try { execFileSync("security", ["delete-generic-password", "-a", "bing-ads-mcp", "-s", "BING_ADS_REFRESH_TOKEN"], { stdio: "ignore" }); } catch { /* may not exist yet */ }
-          execFileSync("security", ["add-generic-password", "-a", "bing-ads-mcp", "-s", "BING_ADS_REFRESH_TOKEN", "-w", data.refresh_token]);
-          console.error("[token] Rotated refresh token persisted to Keychain");
+          const existing = existsSync(tokenPath) ? readFileSync(tokenPath, "utf8") : "";
+          const tokenLine = `BING_ADS_REFRESH_TOKEN=${data.refresh_token}`;
+          const updated = existing.match(/^BING_ADS_REFRESH_TOKEN=/m)
+            ? existing.replace(/^BING_ADS_REFRESH_TOKEN=.*/m, tokenLine)
+            : existing.trimEnd() + (existing ? "\n" : "") + tokenLine + "\n";
+          writeFileSync(tokenPath, updated, "utf8");
+          console.error("[token] Rotated refresh token persisted to", tokenPath);
         } catch (err) {
-          console.error("[token] WARNING: Failed to persist rotated refresh token to Keychain:", err);
+          console.error("[token] WARNING: Failed to persist rotated refresh token:", err);
         }
       } else {
-        console.error("[token] Rotated refresh token received but Keychain not available (non-macOS). Token will be used for this session only.");
+        console.error("[token] Rotated refresh token received but BING_ADS_TOKEN_PATH not set. Token used for this session only.");
       }
     }
 
@@ -933,7 +937,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     };
 
     if (error instanceof BingAdsAuthError) {
-      response.action_required = "Re-authenticate: refresh token may be expired. Update Keychain entry BING_ADS_REFRESH_TOKEN.";
+      response.action_required = "Re-authenticate: refresh token may be expired. Update BING_ADS_REFRESH_TOKEN in the env file and restart the server.";
     } else if (error instanceof BingAdsRateLimitError) {
       response.retry_after_ms = error.retryAfterMs;
       response.action_required = `Rate limited. Retry after ${Math.ceil(error.retryAfterMs / 1000)} seconds.`;
