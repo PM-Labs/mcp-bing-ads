@@ -98,16 +98,45 @@ interface Config {
   clients: Record<string, ClientConfig>;
 }
 
+// Form-encode that preserves ~ (RFC 3986 unreserved, but URLSearchParams encodes it as %7E).
+// Azure rejects %7E in client_secret — must stay as literal ~.
+function formEncode(params: Record<string, string>): string {
+  return Object.entries(params)
+    .filter(([, v]) => v !== undefined && v !== "")
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v).replace(/%7E/gi, "~")}`)
+    .join("&");
+}
+
 function loadConfig(): Config {
   const configPath = join(dirname(new URL(import.meta.url).pathname), "..", "config.json");
-  if (!existsSync(configPath)) {
+  if (existsSync(configPath)) {
+    return JSON.parse(readFileSync(configPath, "utf-8"));
+  }
+  // Env-var fallback: build config from environment when config.json is absent.
+  const customerId = (process.env.BING_ADS_CUSTOMER_ID || "").trim();
+  const accountId  = (process.env.BING_ADS_ACCOUNT_ID  || "").trim();
+  if (!customerId || !accountId) {
     throw new Error(
-      `Config file not found at ${configPath}. Create config.json from config.example.json with your client entries, ` +
-        `or set env vars BING_ADS_DEVELOPER_TOKEN, BING_ADS_CLIENT_ID, BING_ADS_CLIENT_SECRET, and BING_ADS_REFRESH_TOKEN. ` +
-        `Run 'node get-refresh-token.cjs' to obtain a refresh token.`,
+      `config.json not found and BING_ADS_CUSTOMER_ID / BING_ADS_ACCOUNT_ID env vars are not set. ` +
+      `Create config.json from config.example.json, or set those env vars.`,
     );
   }
-  return JSON.parse(readFileSync(configPath, "utf-8"));
+  return {
+    oauth: {
+      client_id: (process.env.BING_ADS_CLIENT_ID || "").trim(),
+      client_secret: (process.env.BING_ADS_CLIENT_SECRET || "").trim() || undefined,
+      token_url: (process.env.BING_ADS_TOKEN_URL || "https://login.microsoftonline.com/common/oauth2/v2.0/token").trim(),
+      scope: "https://ads.microsoft.com/msads.manage offline_access",
+    },
+    clients: {
+      default: {
+        customer_id: customerId,
+        account_id:  accountId,
+        name: "Primary Account",
+        folder: "/",
+      },
+    },
+  };
 }
 
 function getClientFromWorkingDir(config: Config, cwd: string): ClientConfig | null {
@@ -163,21 +192,23 @@ class BingAdsManager {
       return this.accessToken;
     }
 
-    const params = new URLSearchParams({
+    // Use formEncode (not URLSearchParams) to preserve ~ in client_secret.
+    // URLSearchParams encodes ~ as %7E; Azure rejects this during validation.
+    const paramMap: Record<string, string> = {
       grant_type: "refresh_token",
       client_id: this.config.oauth.client_id,
       refresh_token: this.refreshToken,
       scope: this.config.oauth.scope,
-    });
+    };
     // Only include client_secret for confidential clients; public clients must omit it
     if (this.config.oauth.client_secret) {
-      params.set("client_secret", this.config.oauth.client_secret);
+      paramMap["client_secret"] = this.config.oauth.client_secret;
     }
 
     const resp = await fetch(this.config.oauth.token_url, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: params.toString(),
+      body: formEncode(paramMap),
     });
 
     if (!resp.ok) {
@@ -734,11 +765,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     assertWriteAllowed(name);
-    // Resolve client from account_id or working directory context
+    // Resolve client from account_id. For Manager accounts: if account_id isn't
+    // in config, fall back to a dynamic ClientConfig using the Manager's customer_id.
+    // This allows any sub-account to be queried without pre-configuring each one.
+    const managerCustomerId = envTrimmed("BING_ADS_CUSTOMER_ID") || Object.values(config.clients)[0]?.customer_id || "";
     const resolveClient = (accountId?: string): ClientConfig => {
       if (accountId) {
         for (const client of Object.values(config.clients)) {
           if (client.account_id === accountId) return client;
+        }
+        // Manager account fallback: use Manager customer_id with the requested account_id.
+        if (managerCustomerId) {
+          return { customer_id: managerCustomerId, account_id: accountId, name: `Account ${accountId}`, folder: "/" };
         }
         throw new Error(`No client found for account_id ${accountId}`);
       }
