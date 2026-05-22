@@ -113,14 +113,20 @@ function loadConfig(): Config {
     return JSON.parse(readFileSync(configPath, "utf-8"));
   }
   // Env-var fallback: build config from environment when config.json is absent.
+  // BING_ADS_CUSTOMER_ID is required (manager/root account). BING_ADS_ACCOUNT_ID
+  // is optional — omit it for manager-account mode where each tool call supplies
+  // its own account_id via the resolveClient() dynamic fallback.
   const customerId = (process.env.BING_ADS_CUSTOMER_ID || "").trim();
-  const accountId  = (process.env.BING_ADS_ACCOUNT_ID  || "").trim();
-  if (!customerId || !accountId) {
+  if (!customerId) {
     throw new Error(
-      `config.json not found and BING_ADS_CUSTOMER_ID / BING_ADS_ACCOUNT_ID env vars are not set. ` +
-      `Create config.json from config.example.json, or set those env vars.`,
+      `config.json not found and BING_ADS_CUSTOMER_ID env var is not set. ` +
+      `Create config.json from config.example.json, or set BING_ADS_CUSTOMER_ID.`,
     );
   }
+  const accountId = (process.env.BING_ADS_ACCOUNT_ID || "").trim();
+  const clients: Record<string, ClientConfig> = accountId
+    ? { default: { customer_id: customerId, account_id: accountId, name: "Primary Account", folder: "/" } }
+    : {};
   return {
     oauth: {
       client_id: (process.env.BING_ADS_CLIENT_ID || "").trim(),
@@ -128,14 +134,7 @@ function loadConfig(): Config {
       token_url: (process.env.BING_ADS_TOKEN_URL || "https://login.microsoftonline.com/common/oauth2/v2.0/token").trim(),
       scope: "https://ads.microsoft.com/msads.manage offline_access",
     },
-    clients: {
-      default: {
-        customer_id: customerId,
-        account_id:  accountId,
-        name: "Primary Account",
-        folder: "/",
-      },
-    },
+    clients,
   };
 }
 
