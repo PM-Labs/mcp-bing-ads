@@ -152,4 +152,22 @@ export const tools: Tool[] = [
       required: ["campaign_id", "daily_budget"],
     },
   },
+  {
+    name: "bing_ads_list_accounts",
+    description: "List or search accounts under the Pathfinder manager account (MCC), including linked accounts such as sales prospects. Use this to discover an account_id by business name when no client repo exists yet.",
+    inputSchema: {
+      additionalProperties: false,
+      type: "object",
+      properties: {
+        name_filter: {
+          type: "string",
+          description: "Case-insensitive substring match against the account name. Omit or pass an empty string to return every account under the manager account.",
+        },
+        account_id: {
+          type: "string",
+          description: "Exact account ID to look up. Takes precedence over name_filter if both are supplied.",
+        },
+      },
+    },
+  },
 ];
