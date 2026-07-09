@@ -1000,6 +1000,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
+      case "bing_ads_list_accounts": {
+        const result = await adsManager.listAccounts(
+          args?.name_filter as string | undefined,
+          args?.account_id as string | undefined,
+        );
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(result, null, 2),
+          }],
+        };
+      }
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
