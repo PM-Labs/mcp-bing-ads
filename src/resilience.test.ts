@@ -30,6 +30,20 @@ describe("Resilience", () => {
       const result = safeResponse(largeObj, "test");
       expect((result as any).items.length).toBeLessThan(5000);
     });
+
+    it("should truncate large objects with an accounts array and flag truncated", () => {
+      const largeObj = {
+        accounts: Array.from({ length: 5000 }, (_, i) => ({
+          account_id: String(i),
+          account_name: `Account ${i}`,
+          account_number: String(i),
+          status: "Active",
+        })),
+      };
+      const result = safeResponse(largeObj, "test") as any;
+      expect(result.accounts.length).toBeLessThan(5000);
+      expect(result.truncated).toBe(true);
+    });
   });
 
   describe("withResilience", () => {
