@@ -43,6 +43,18 @@ If the container restarts with a stale (already-consumed) refresh token, it will
 
 `BING_ADS_CUSTOMER_ID=159333588` is the Pathfinder manager account. `BING_ADS_ACCOUNT_ID` is intentionally omitted — `resolveClient()` dynamically creates a `ClientConfig` for any `account_id` parameter passed to tools, using the manager customer ID as the parent.
 
+## Account discovery (`bing_ads_list_accounts`)
+
+Added to solve prospect-account lookup: every other tool already accepts an explicit `account_id` and works for any account under the manager (client or not) via `resolveClient()`'s dynamic fallback — the missing piece was *discovery*, since account IDs were previously only documented in client repos' `context/accounts.md`.
+
+Calls Microsoft's `GetAccountsInfo` Customer Management operation (`CUSTOMER_MGMT_BASE` — a distinct base URL from `CAMPAIGN_MGMT_BASE`/`REPORTING_BASE`). `OnlyParentAccounts: false` is deliberate — it includes *linked* accounts (accounts granted to Pathfinder without ownership transfer, e.g. sales prospects mid-discovery), not just accounts the manager customer owns directly.
+
+**Do not route this call through `apiCall()`/`getHeaders()`.** Those assume a `ClientConfig` (customer_id + account_id) exists, which isn't true at discovery time — `GetAccountsInfo` only needs `Authorization` + `DeveloperToken` headers, with `CustomerId` as a body field, not a header. Use `customerApiCall()` instead.
+
+**Write-tool reachability:** `mcp-bing-ads` has three write-capable tools (`bing_ads_pause_keywords`, `bing_ads_add_shared_negatives`, `bing_ads_update_campaign_budget`), all gated behind `BING_ADS_MCP_WRITE=true` (off by default). That gate is independent of account discoverability — a newly-discoverable prospect/former-client `account_id` is no more writable than any other account, because the write gate blocks by tool, not by how the account_id was found.
+
+**No per-individual audit trail.** Every Pathfinder staff session authenticates through the same static `MCP_AUTH_TOKEN` issued by the OAuth PKCE flow in `server.js` — there is no per-caller identity anywhere in this MCP, for this tool or any other. Structured request logging captures timestamp, operation, and the filter/account_id supplied, but not who called it. This was explicitly surfaced and signed off during design (see the design spec in `pmin-apps/docs/nick/superpowers/specs/2026-07-09-bing-ads-prospect-account-lookup-design.hardened.md`) rather than left implicit.
+
 ## Azure app
 
 - App name: **Bing Ads MCP** (Azure Portal → App registrations)

@@ -8,7 +8,7 @@
 Production-grade MCP server for Microsoft Advertising (Bing Ads) API. Enables Claude to manage Bing/Microsoft Ads accounts with full campaign, ad group, keyword, and performance analysis capabilities.
 
 **Features:**
-- **10 tools** -- production-tested
+- **11 tools** -- production-tested
 - Campaign, ad group, and keyword management
 - Keyword performance analysis with quality scores
 - Search term reporting & bid automation
@@ -133,6 +133,9 @@ bing_ads_add_shared_negatives({
     { text: "discount", match_type: "Exact" }
   ]
 })
+
+// Discover a prospect's account by name (no client repo needed)
+bing_ads_list_accounts({ name_filter: "Area Office" })
 ```
 
 ## API Reference
@@ -156,6 +159,9 @@ bing_ads_add_shared_negatives({
 ### Negative Keywords
 - `bing_ads_list_shared_entities([type])` -- List shared negative lists
 - `bing_ads_add_shared_negatives(list_id, keywords)` -- Add to shared list
+
+### Accounts
+- `bing_ads_list_accounts([name_filter], [account_id])` -- List/search accounts under the manager account (MCC), including linked accounts (e.g. sales prospects). No client repo required.
 
 ### Performance Reports
 - Campaign performance (ROI, conversions, CTR, CPC)
