@@ -21,6 +21,7 @@ import {
 import { tools } from "./tools.js";
 import { filterTools, assertWriteAllowed, isWriteEnabled } from "./writeGate.js";
 import { withResilience, safeResponse, logger } from "./resilience.js";
+import { extractAccountInfoArray, mapAccountInfo, filterAccounts, type MappedAccount } from "./accountsFilter.js";
 import v8 from "v8";
 
 // CLI package info
@@ -153,6 +154,7 @@ function getClientFromWorkingDir(config: Config, cwd: string): ClientConfig | nu
 
 const CAMPAIGN_MGMT_BASE = "https://campaign.api.bingads.microsoft.com/CampaignManagement/v13";
 const REPORTING_BASE = "https://reporting.api.bingads.microsoft.com/Reporting/v13";
+const CUSTOMER_MGMT_BASE = "https://clientcenter.api.bingads.microsoft.com/CustomerManagement/v13";
 
 class BingAdsManager {
   private config: Config;
@@ -277,6 +279,45 @@ class BingAdsManager {
 
       return await resp.json();
     }, operationName);
+  }
+
+  private async customerApiCall(url: string, body: any, operationName: string): Promise<any> {
+    return withResilience(async () => {
+      const token = await this.getAccessToken();
+      const headers: Record<string, string> = {
+        "Authorization": `Bearer ${token}`,
+        "DeveloperToken": this.developerToken,
+        "Content-Type": "application/json",
+      };
+
+      const resp = await fetch(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(30_000),
+      });
+
+      if (!resp.ok) {
+        const text = await resp.text();
+        const error = new Error(`Bing Ads API error: ${resp.status} ${text}`);
+        (error as any).status = resp.status;
+        throw classifyError(error);
+      }
+
+      return await resp.json();
+    }, operationName);
+  }
+
+  async listAccounts(nameFilter?: string, accountId?: string): Promise<{ accounts: MappedAccount[]; was_truncated: boolean }> {
+    const customerId = envTrimmed("BING_ADS_CUSTOMER_ID");
+    const url = `${CUSTOMER_MGMT_BASE}/AccountsInfo/Query`;
+    const body = { CustomerId: customerId, OnlyParentAccounts: false };
+    const response = await this.customerApiCall(url, body, "CustomerManagement.GetAccountsInfo");
+    const raw = extractAccountInfoArray(response);
+    const mapped = mapAccountInfo(raw);
+    const filtered = filterAccounts(mapped, { nameFilter, accountId });
+    const safe = safeResponse({ accounts: filtered }, "listAccounts") as { accounts: MappedAccount[]; truncated?: boolean };
+    return { accounts: safe.accounts, was_truncated: !!safe.truncated };
   }
 
   private getClientForAccountId(accountId: string): ClientConfig | null {
