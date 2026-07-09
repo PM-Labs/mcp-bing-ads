@@ -53,7 +53,7 @@ Calls Microsoft's `GetAccountsInfo` Customer Management operation (`CUSTOMER_MGM
 
 **Write-tool reachability:** `mcp-bing-ads` has three write-capable tools (`bing_ads_pause_keywords`, `bing_ads_add_shared_negatives`, `bing_ads_update_campaign_budget`), all gated behind `BING_ADS_MCP_WRITE=true` (off by default). That gate is independent of account discoverability — a newly-discoverable prospect/former-client `account_id` is no more writable than any other account, because the write gate blocks by tool, not by how the account_id was found.
 
-**No per-individual audit trail.** Every Pathfinder staff session authenticates through the same static `MCP_AUTH_TOKEN` issued by the OAuth PKCE flow in `server.js` — there is no per-caller identity anywhere in this MCP, for this tool or any other. Structured request logging captures timestamp, operation, and the filter/account_id supplied, but not who called it. This was explicitly surfaced and signed off during design (see the design spec in `pmin-apps/docs/nick/superpowers/specs/2026-07-09-bing-ads-prospect-account-lookup-design.hardened.md`) rather than left implicit.
+**No per-individual audit trail.** Every Pathfinder staff session authenticates through the same static `MCP_AUTH_TOKEN` issued by the OAuth PKCE flow in `server.js` — there is no per-caller identity anywhere in this MCP, for this tool or any other. Structured request logging captures timestamp and operation name only — not tool arguments (filter/account_id or otherwise), and not caller identity. This was explicitly surfaced and signed off during design (see the design spec in `pmin-apps/docs/nick/superpowers/specs/2026-07-09-bing-ads-prospect-account-lookup-design.hardened.md`) rather than left implicit.
 
 ## Azure app
 
