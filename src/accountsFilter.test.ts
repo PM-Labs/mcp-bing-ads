@@ -2,18 +2,18 @@ import { describe, it, expect } from "vitest";
 import { extractAccountInfoArray, mapAccountInfo, filterAccounts } from "./accountsFilter.js";
 
 describe("extractAccountInfoArray", () => {
-  it("returns the AccountInfo array when present", () => {
-    const response = { AccountInfo: [{ Id: 1, Name: "A" }] };
+  it("returns the AccountsInfo array when present", () => {
+    const response = { AccountsInfo: [{ Id: 1, Name: "A" }] };
     expect(extractAccountInfoArray(response)).toEqual([{ Id: 1, Name: "A" }]);
   });
 
-  it("returns an empty array when AccountInfo is null", () => {
-    const response = { AccountInfo: null };
+  it("returns an empty array when AccountsInfo is null", () => {
+    const response = { AccountsInfo: null };
     expect(extractAccountInfoArray(response)).toEqual([]);
   });
 
-  it("throws when the AccountInfo key is absent entirely", () => {
-    expect(() => extractAccountInfoArray({})).toThrow(/missing AccountInfo key/);
+  it("throws when the AccountsInfo key is absent entirely", () => {
+    expect(() => extractAccountInfoArray({})).toThrow(/missing AccountsInfo key/);
   });
 
   it("throws when the response is not an object", () => {
@@ -21,8 +21,19 @@ describe("extractAccountInfoArray", () => {
     expect(() => extractAccountInfoArray("oops")).toThrow(/expected an object/);
   });
 
-  it("throws when AccountInfo is present but not an array or null", () => {
-    expect(() => extractAccountInfoArray({ AccountInfo: "not-an-array" })).toThrow(/not an array/);
+  it("throws when AccountsInfo is present but not an array or null", () => {
+    expect(() => extractAccountInfoArray({ AccountsInfo: "not-an-array" })).toThrow(/not an array/);
+  });
+
+  it("matches Microsoft's documented live REST response shape", () => {
+    const response = {
+      AccountsInfo: [
+        { AccountLifeCycleStatus: "Active", Id: 176795228, Name: "Area Office", Number: "C123ABC", PauseReason: null },
+      ],
+    };
+    expect(extractAccountInfoArray(response)).toEqual([
+      { AccountLifeCycleStatus: "Active", Id: 176795228, Name: "Area Office", Number: "C123ABC", PauseReason: null },
+    ]);
   });
 });
 

@@ -16,15 +16,15 @@ export function extractAccountInfoArray(response: unknown): RawAccountInfo[] {
   if (response === null || typeof response !== "object") {
     throw new Error("Malformed GetAccountsInfo response: expected an object");
   }
-  if (!("AccountInfo" in response)) {
-    throw new Error("Malformed GetAccountsInfo response: missing AccountInfo key");
+  if (!("AccountsInfo" in response)) {
+    throw new Error("Malformed GetAccountsInfo response: missing AccountsInfo key");
   }
-  const raw = (response as { AccountInfo: unknown }).AccountInfo;
+  const raw = (response as { AccountsInfo: unknown }).AccountsInfo;
   if (raw === null || raw === undefined) {
     return [];
   }
   if (!Array.isArray(raw)) {
-    throw new Error("Malformed GetAccountsInfo response: AccountInfo is not an array");
+    throw new Error("Malformed GetAccountsInfo response: AccountsInfo is not an array");
   }
   return raw as RawAccountInfo[];
 }
