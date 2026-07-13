@@ -354,8 +354,7 @@ class BingAdsManager {
   async listConversionGoals(client: ClientConfig): Promise<{ goals: ConversionGoalSummary[]; warnings: GoalWarning[] }> {
     const url = `${CAMPAIGN_MGMT_BASE}/ConversionGoals/QueryByIds`;
     const body = {
-      ConversionGoalIds: [],
-      ConversionGoalTypes: "Url",
+      ConversionGoalTypes: "AppDownload AppInstall Duration Event InStoreTransaction OfflineConversion PagesViewedPerVisit Url",
     };
     const response = await this.apiCall(url, body, client, "listConversionGoals");
     const raw = extractConversionGoalsArray(response);
