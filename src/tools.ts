@@ -170,4 +170,31 @@ export const tools: Tool[] = [
       },
     },
   },
+  {
+    name: "bing_ads_list_conversion_goals",
+    description: "List the conversion goals configured for an account (e.g. Purchase, Submit Lead Form, Phone Call) by name, type, and category. Use this to discover goal names before interpreting bing_ads_conversion_performance's by_goal breakdown.",
+    inputSchema: {
+      additionalProperties: false,
+      type: "object",
+      properties: {
+        account_id: { type: "string", description: "The account ID (uses context if not provided)" },
+      },
+    },
+  },
+  {
+    name: "bing_ads_conversion_performance",
+    description: "Get conversion performance (qualified conversions, conversion rate, cost per conversion, revenue, ROAS) per campaign for a date range, using Microsoft's current non-deprecated conversion columns. Set by_goal to true to break results out by conversion goal (returns one row per campaign per goal instead of one aggregate row per campaign). Not applicable to Shopping campaigns.",
+    inputSchema: {
+      additionalProperties: false,
+      type: "object",
+      properties: {
+        account_id: { type: "string" },
+        start_date: { type: "string", description: "Start date YYYY-MM-DD" },
+        end_date: { type: "string", description: "End date YYYY-MM-DD" },
+        campaign_ids: { type: "array", items: { type: "string" }, description: "Filter by numeric string campaign IDs" },
+        by_goal: { type: "boolean", description: "If true, break results out per conversion goal (multiple rows per campaign). Defaults to false (one aggregate row per campaign)." },
+      },
+      required: ["start_date", "end_date"],
+    },
+  },
 ];
