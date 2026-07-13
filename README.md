@@ -8,7 +8,7 @@
 Production-grade MCP server for Microsoft Advertising (Bing Ads) API. Enables Claude to manage Bing/Microsoft Ads accounts with full campaign, ad group, keyword, and performance analysis capabilities.
 
 **Features:**
-- **11 tools** -- production-tested
+- **13 tools** -- production-tested
 - Campaign, ad group, and keyword management
 - Keyword performance analysis with quality scores
 - Search term reporting & bid automation
@@ -136,6 +136,12 @@ bing_ads_add_shared_negatives({
 
 // Discover a prospect's account by name (no client repo needed)
 bing_ads_list_accounts({ name_filter: "Area Office" })
+
+// List configured conversion goals
+bing_ads_list_conversion_goals({ account_id: "176795228" })
+
+// Conversion performance broken out by goal
+bing_ads_conversion_performance({ account_id: "176795228", start_date: "2026-06-01", end_date: "2026-06-30", by_goal: true })
 ```
 
 ## API Reference
@@ -162,6 +168,10 @@ bing_ads_list_accounts({ name_filter: "Area Office" })
 
 ### Accounts
 - `bing_ads_list_accounts([name_filter], [account_id])` -- List/search accounts under the manager account (MCC), including linked accounts (e.g. sales prospects). No client repo required.
+
+### Conversions
+- `bing_ads_list_conversion_goals([account_id])` -- List the conversion goals configured for an account (name, type, category, status).
+- `bing_ads_conversion_performance(start_date, end_date, [account_id], [campaign_ids], [by_goal])` -- Conversion performance per campaign using Microsoft's current (non-deprecated) columns. Set `by_goal: true` to break results out per conversion goal. Not applicable to Shopping campaigns.
 
 ### Performance Reports
 - Campaign performance (ROI, conversions, CTR, CPC)

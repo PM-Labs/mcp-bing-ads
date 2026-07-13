@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- `bing_ads_list_conversion_goals` -- list configured conversion goals for an account (name, type, category, status).
+- `bing_ads_conversion_performance` -- conversion performance per campaign, with an optional `by_goal` breakdown.
+
+### Breaking
+- `Conversions` field on `bing_ads_get_campaign_performance`, `bing_ads_keyword_performance`, and `bing_ads_search_term_report` is now sourced from Microsoft's `ConversionsQualified` column (fractional/decimal-credited) instead of the deprecated legacy `Conversions` column. Values from before this change are not directly comparable to values after it.
+
 ## [1.1.0] - 2026-04-18
 
 ### Added

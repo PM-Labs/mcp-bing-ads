@@ -57,6 +57,18 @@ Calls Microsoft's `GetAccountsInfo` Customer Management operation (`CUSTOMER_MGM
 
 **No per-individual audit trail.** Every Pathfinder staff session authenticates through the same static `MCP_AUTH_TOKEN` issued by the OAuth PKCE flow in `server.js` — there is no per-caller identity anywhere in this MCP, for this tool or any other. Structured request logging captures timestamp and operation name only — not tool arguments (filter/account_id or otherwise), and not caller identity. This was explicitly surfaced and signed off during design (see the design spec in `pmin-apps/docs/nick/superpowers/specs/2026-07-09-bing-ads-prospect-account-lookup-design.hardened.md`) rather than left implicit.
 
+## Conversion tracking (`bing_ads_list_conversion_goals`, `bing_ads_conversion_performance`)
+
+Added because the three existing reporting tools only ever returned one aggregate conversion total per campaign/keyword/search-term, with no way to see which conversion goal (Purchase, Lead Form, Phone Call, etc.) drove it, and using Microsoft's deprecated `Conversions` column.
+
+`listConversionGoals()` calls `GetConversionGoalsByIds` (Campaign Management, `CAMPAIGN_MGMT_BASE` — same base url as `listCampaigns`) through the existing `apiCall()`/`getHeaders()` path, requesting `ConversionGoalIds: []` for "all goals." `getConversionPerformance()` calls `ConversionPerformanceReportRequest` through the existing `submitReport()`/`waitForReport()` flow, identical in structure to `getKeywordPerformance`/`getSearchTermReport` — no new request-building path, no new polling logic for either tool.
+
+**`by_goal` changes row grouping, not just content.** Including `Goal`/`GoalId`/`GoalType` as columns makes Microsoft's Reporting API return one row per campaign *per goal* instead of one aggregate row per campaign. Do not default this to `true` — it would silently change the shape every caller of the base (non-goal) form already relies on.
+
+**No `goal_ids` filter parameter, deliberately.** Microsoft's `ConversionPerformanceReportRequest` has no field to filter by goal ID anywhere in its `Filter` or `Scope` objects — it isn't achievable as a server-side filter. If per-goal isolation is needed, use `by_goal: true` and filter the response client-side.
+
+**Breaking change, not versioned/fallback-gated.** The `Conversions` field on the three existing reporting tools now sources from `ConversionsQualified` (Microsoft deprecated the legacy `Conversions` column in 2022). The JSON key is unchanged; the *values* are not directly comparable to pre-change values. This ships as a single breaking change with no parallel `use_qualified_conversions`-style parameter — if a real caller needs a migration path later, that's a separate decision made when the need is real, not built speculatively.
+
 ## Azure app
 
 - App name: **Bing Ads MCP** (Azure Portal → App registrations)
