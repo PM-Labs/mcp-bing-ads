@@ -729,6 +729,48 @@ class BingAdsManager {
     return await this.waitForReport(client, requestId);
   }
 
+  async getConversionPerformance(client: ClientConfig, options: {
+    startDate: string;
+    endDate: string;
+    campaignIds?: string[];
+    byGoal: boolean;
+  }): Promise<any[]> {
+    const [startYear, startMonth, startDay] = options.startDate.split("-").map(Number);
+    const [endYear, endMonth, endDay] = options.endDate.split("-").map(Number);
+
+    const scope: any = {
+      AccountIds: [parseInt(client.account_id)],
+    };
+    if (options.campaignIds && options.campaignIds.length > 0) {
+      scope.Campaigns = options.campaignIds.map(id => ({
+        AccountId: parseInt(client.account_id),
+        CampaignId: parseInt(id),
+      }));
+    }
+
+    const reportRequest = {
+      Type: "ConversionPerformanceReportRequest",
+      ReportName: "Conversion Performance",
+      Format: "Csv",
+      FormatVersion: "2.0",
+      ExcludeColumnHeaders: false,
+      ExcludeReportFooter: true,
+      ExcludeReportHeader: true,
+      ReturnOnlyCompleteData: false,
+      Aggregation: "Summary",
+      Columns: buildConversionColumns(options.byGoal),
+      Scope: scope,
+      Time: {
+        CustomDateRangeStart: { Year: startYear, Month: startMonth, Day: startDay },
+        CustomDateRangeEnd: { Year: endYear, Month: endMonth, Day: endDay },
+        ReportTimeZone: "PacificTimeUSCanadaTijuana",
+      },
+    };
+
+    const requestId = await this.submitReport(client, reportRequest);
+    return await this.waitForReport(client, requestId);
+  }
+
   // ============================================
   // WRITE OPERATIONS
   // ============================================
