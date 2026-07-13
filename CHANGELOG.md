@@ -7,7 +7,10 @@
 - `bing_ads_conversion_performance` -- conversion performance per campaign, with an optional `by_goal` breakdown.
 
 ### Breaking
-- `Conversions` field on `bing_ads_get_campaign_performance`, `bing_ads_keyword_performance`, and `bing_ads_search_term_report` is now sourced from Microsoft's `ConversionsQualified` column (fractional/decimal-credited) instead of the deprecated legacy `Conversions` column. Values from before this change are not directly comparable to values after it.
+- `bing_ads_get_campaign_performance`, `bing_ads_keyword_performance`, and `bing_ads_search_term_report` now request Microsoft's `ConversionsQualified` column (fractional/decimal-credited) instead of the deprecated legacy `Conversions` column. **The response's JSON key changes accordingly** -- callers previously reading `Conversions` must read `ConversionsQualified` instead. Values are also not directly comparable to pre-change values.
+
+### Fixed
+- `bing_ads_list_conversion_goals` request body corrected after live smoke testing found Microsoft's REST endpoint diverges from its own SOAP documentation: `ConversionGoalIds` must be omitted (not `[]`/`null`), `ConversionGoalTypes` must be a comma-delimited string (not space-delimited, not an array), and `InStoreTransaction` is excluded from the default type list (this manager account isn't enrolled in Microsoft's In-Store Transaction pilot).
 
 ## [1.1.0] - 2026-04-18
 

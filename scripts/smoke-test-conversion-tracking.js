@@ -108,7 +108,9 @@ function toolText(result, toolName) {
   }
   pass(`bing_ads_conversion_performance (by_goal=true) returned ${perfByGoalBody.length} row(s) with Goal columns`);
 
-  // Regression check: the three existing tools whose Conversions column now sources from ConversionsQualified.
+  // Regression check: the three existing tools now request ConversionsQualified instead of the
+  // deprecated Conversions column -- and the JSON key changes accordingly (parseCsv() uses the
+  // requested column name verbatim as the response key), so this checks for ConversionsQualified.
   const regressionTools = [
     { name: 'bing_ads_get_campaign_performance', args: { account_id: ACCOUNT_ID, start_date: startDate, end_date: endDate } },
     { name: 'bing_ads_keyword_performance', args: { account_id: ACCOUNT_ID, start_date: startDate, end_date: endDate } },
@@ -119,8 +121,8 @@ function toolText(result, toolName) {
     const body = toolText(r, t.name);
     if (body.error) fail(`${t.name} regression check failed`, JSON.stringify(body));
     if (!Array.isArray(body)) fail(`${t.name} response was not an array`, JSON.stringify(body).slice(0, 500));
-    if (body.length && !('Conversions' in body[0])) fail(`${t.name} response missing Conversions field`, JSON.stringify(body[0]));
-    pass(`${t.name} regression check: ${body.length} row(s), Conversions field present`);
+    if (body.length && !('ConversionsQualified' in body[0])) fail(`${t.name} response missing ConversionsQualified field`, JSON.stringify(body[0]));
+    pass(`${t.name} regression check: ${body.length} row(s), ConversionsQualified field present`);
   }
 
   console.log('\nAll conversion-tracking smoke test assertions passed.');
