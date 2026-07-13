@@ -1069,6 +1069,40 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
+      case "bing_ads_list_conversion_goals": {
+        const client = resolveClient(args?.account_id as string);
+        const result = await adsManager.listConversionGoals(client);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(safeResponse(result, "listConversionGoals"), null, 2),
+          }],
+        };
+      }
+
+      case "bing_ads_conversion_performance": {
+        const today_cvp = new Date().toISOString().slice(0, 10);
+        if (args?.start_date && (args.start_date as string) > today_cvp) {
+          return { content: [{ type: "text", text: JSON.stringify(safeResponse({ error: `start_date "${args.start_date}" is in the future. Reports only cover historical data.` }, "getConversionPerformance"), null, 2) }] };
+        }
+        if (args?.start_date && args?.end_date && (args.end_date as string) < (args.start_date as string)) {
+          return { content: [{ type: "text", text: JSON.stringify(safeResponse({ error: `end_date "${args.end_date}" is before start_date "${args.start_date}".` }, "getConversionPerformance"), null, 2) }] };
+        }
+        const client = resolveClient(args?.account_id as string);
+        const result = await adsManager.getConversionPerformance(client, {
+          startDate: args?.start_date as string,
+          endDate: args?.end_date as string,
+          campaignIds: args?.campaign_ids as string[],
+          byGoal: (args?.by_goal as boolean) ?? false,
+        });
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(safeResponse(result, "getConversionPerformance"), null, 2),
+          }],
+        };
+      }
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
