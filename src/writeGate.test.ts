@@ -18,8 +18,6 @@ const READ_TOOLS = [
   "bing_ads_search_term_report",
   "bing_ads_list_shared_entities",
   "bing_ads_list_accounts",
-  "bing_ads_list_conversion_goals",
-  "bing_ads_conversion_performance",
 ];
 
 describe("writeGate", () => {
