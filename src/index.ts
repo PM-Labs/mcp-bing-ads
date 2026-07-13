@@ -22,6 +22,7 @@ import { tools } from "./tools.js";
 import { filterTools, assertWriteAllowed, isWriteEnabled } from "./writeGate.js";
 import { withResilience, safeResponse, logger } from "./resilience.js";
 import { extractAccountInfoArray, mapAccountInfo, filterAccounts, type MappedAccount } from "./accountsFilter.js";
+import { extractConversionGoalsArray, mapConversionGoals, extractGoalWarnings, buildConversionColumns, type ConversionGoalSummary, type GoalWarning } from "./conversionGoals.js";
 import v8 from "v8";
 
 // CLI package info
@@ -348,6 +349,19 @@ class BingAdsManager {
       CampaignId: campaignId,
     };
     return await this.apiCall(url, body, client, "listAdGroups");
+  }
+
+  async listConversionGoals(client: ClientConfig): Promise<{ goals: ConversionGoalSummary[]; warnings: GoalWarning[] }> {
+    const url = `${CAMPAIGN_MGMT_BASE}/ConversionGoals/QueryByIds`;
+    const body = {
+      ConversionGoalIds: [],
+      ConversionGoalTypes: null,
+    };
+    const response = await this.apiCall(url, body, client, "listConversionGoals");
+    const raw = extractConversionGoalsArray(response);
+    const goals = mapConversionGoals(raw);
+    const warnings = extractGoalWarnings(response);
+    return { goals, warnings };
   }
 
   // ============================================
