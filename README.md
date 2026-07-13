@@ -151,15 +151,15 @@ bing_ads_conversion_performance({ account_id: "176795228", start_date: "2026-06-
 
 ### Campaigns
 - `bing_ads_list_campaigns()` -- List all campaigns
-- `bing_ads_get_campaign_performance(start_date, end_date)` -- Campaign metrics
+- `bing_ads_get_campaign_performance(start_date, end_date)` -- Campaign metrics (Conversions column uses Microsoft's qualified/credited decimal values)
 - `bing_ads_update_campaign_budget(campaign_id, daily_budget)` -- Update daily spend
 
 ### Ad Groups
 - `bing_ads_list_ad_groups(campaign_id)` -- List ad groups in campaign
 
 ### Keywords
-- `bing_ads_keyword_performance(start_date, end_date, [campaign_ids])` -- Keyword metrics & QS
-- `bing_ads_search_term_report(start_date, end_date)` -- Search terms that triggered ads
+- `bing_ads_keyword_performance(start_date, end_date, [campaign_ids])` -- Keyword metrics & QS (Conversions column uses Microsoft's qualified/credited decimal values)
+- `bing_ads_search_term_report(start_date, end_date)` -- Search terms that triggered ads (Conversions column uses Microsoft's qualified/credited decimal values)
 - `bing_ads_pause_keywords(ad_group_id, keyword_ids)` -- Pause keywords
 
 ### Negative Keywords

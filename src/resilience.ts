@@ -62,7 +62,7 @@ export function safeResponse<T>(data: T, context: string): T {
     if (typeof current === "object" && current !== null) {
       const obj = current as Record<string, any>;
       let truncated = false;
-      for (const key of ["items", "results", "data", "rows", "tags", "triggers", "variables", "accounts"]) {
+      for (const key of ["items", "results", "data", "rows", "tags", "triggers", "variables", "accounts", "goals", "warnings"]) {
         if (Array.isArray(obj[key]) && obj[key].length > 1) {
           obj[key] = obj[key].slice(0, Math.max(1, Math.floor(obj[key].length * 0.5)));
           if ("count" in obj) obj.count = obj[key].length;
