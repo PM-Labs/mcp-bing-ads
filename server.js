@@ -6,9 +6,9 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT || '8080');
-const AUTH_TOKEN = process.env.MCP_AUTH_TOKEN?.trim();
-const OAUTH_CLIENT_ID = process.env.OAUTH_CLIENT_ID?.trim();
-const OAUTH_CLIENT_SECRET = process.env.OAUTH_CLIENT_SECRET?.trim();
+const AUTH_TOKEN = process.env.BING_ADS_MCP_AUTH_TOKEN?.trim();
+const OAUTH_CLIENT_ID = process.env.BING_ADS_OAUTH_CLIENT_ID?.trim();
+const OAUTH_CLIENT_SECRET = process.env.BING_ADS_OAUTH_CLIENT_SECRET?.trim();
 
 const authCodes = {};
 
