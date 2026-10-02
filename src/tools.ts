@@ -259,7 +259,7 @@ export const tools: Tool[] = [
   },
   {
     name: "bing_ads_update_conversion_goal",
-    description: "Edit or pause a Url, Event, Duration or PagesViewedPerVisit conversion goal. Only the fields you pass change; the rest (including an Event goal's match rule) are kept. To retire a goal set status Paused (reversible with Active): Microsoft does not allow deleting goals through the API, so a paused goal stays in the list. Scope and goal type cannot be changed. Returns the goal as read back from Microsoft. WRITE.",
+    description: "Edit or pause a Url, Event, Duration or PagesViewedPerVisit conversion goal. Only the fields you pass change; the rest (including an Event goal's match rule) are kept. To retire a goal set status Paused (reversible with Active): Microsoft does not allow deleting goals through the API, so a paused goal stays in the list. Scope and goal type cannot be changed. Returns the goal as read back from Microsoft. WRITE, and it can change more than the goal: editing a goal can switch on Microsoft's auto-tagging (MSCLKID) for the WHOLE account, i.e. its existing campaigns too (for a Customer-scope goal, every account under the customer). Check that is acceptable before using this on a client account.",
     inputSchema: {
       additionalProperties: false,
       type: "object",
