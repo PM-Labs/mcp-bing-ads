@@ -89,7 +89,7 @@ Added 2026-10-02 (Trello "Dev | MCP Updates", tracking-only scope approved by Ni
 - **Event `ValueOperator` only accepts `Equals`, `GreaterThan`, `LessThan`** (not `...EqualTo`); a bad enum 400s with `NullRequest` and the bad field in `Details`.
 - **`Status: "Deleted"` is refused** (`InvalidConversionGoalStatus`), despite the docs listing it. Pausing is the only way to retire a goal; paused goals stay in the list and keep their name (names are unique per customer).
 - **An Event-goal update must re-send the match rule**: Microsoft deletes any expression/operator pair an update leaves out. `buildUpdateGoalBody` merges the goal's current rule from a fresh list call. Revenue is only replaced when the caller passes `revenue_*` (`CurrencyCode: "AUD"` works).
-- Scope defaults to **Account** here (Microsoft's own default is Customer, shared across every account) and cannot be changed after creation. Goal creation also switches on MSCLKID auto-tagging for the account.
+- Scope defaults to **Account** here (Microsoft's own default is Customer, shared across every account) and cannot be changed after creation. Goal creation can also switch on MSCLKID auto-tagging for the **whole account** (all its existing campaigns; every account under the customer for a Customer-scope goal) -- the create tool's description says so; flag it before using the tool on a client account.
 - **UET tags can never be deleted.** Create one only when a site has none; `bing_ads_create_uet_tag` and `bing_ads_create_conversion_goal` run once with no automatic retry (a timed-out create may have succeeded, and a retry would duplicate).
 - Microsoft's wrong-ID errors are friendly (`InvalidUetTagId`); `createConversionGoal` also checks `tag_id` against `bing_ads_list_uet_tags` first.
 

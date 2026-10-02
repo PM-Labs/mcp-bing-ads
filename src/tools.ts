@@ -224,7 +224,7 @@ export const tools: Tool[] = [
   },
   {
     name: "bing_ads_create_conversion_goal",
-    description: "Create a conversion goal on an account. goal_type: Url (a page visit, e.g. a thank-you page), Event (a custom UET event such as a form submit), Duration (time on site), PagesViewedPerVisit. Needs a tag_id from bing_ads_list_uet_tags. Defaults to Account scope (only this account) unlike Microsoft's own default of Customer scope. Returns the goal as read back from Microsoft. WRITE: the goal starts tracking immediately and Microsoft turns on MSCLKID auto-tagging for the account.",
+    description: "Create a conversion goal on an account. goal_type: Url (a page visit, e.g. a thank-you page), Event (a custom UET event such as a form submit), Duration (time on site), PagesViewedPerVisit. Needs a tag_id from bing_ads_list_uet_tags. Defaults to Account scope (only this account) unlike Microsoft's own default of Customer scope. Returns the goal as read back from Microsoft. WRITE, and it can change more than the goal: creating a goal can switch on Microsoft's auto-tagging (MSCLKID) for the WHOLE account, i.e. its existing campaigns too (for a Customer-scope goal, every account under the customer). Check that is acceptable before using this on a client account. The goal also starts tracking immediately.",
     inputSchema: {
       additionalProperties: false,
       type: "object",
