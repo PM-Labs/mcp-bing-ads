@@ -81,7 +81,7 @@ npm install mcp-bing-ads
 
 ### Read-only by default
 
-Mutating tools (`bing_ads_pause_keywords`, `bing_ads_update_campaign_budget`, `bing_ads_add_shared_negatives`) are **hidden from the tool list and refused at call time** unless `BING_ADS_MCP_WRITE=true` is set in the server environment. This is a safety gate against casual write actions -- for example, pausing a keyword or editing a budget based on a throwaway chat message. To make write changes, set the env var explicitly in your `.mcp.json` or shell profile for the session that needs it, then unset it afterwards. Read tools (list/report/performance) are always available.
+Mutating tools (`bing_ads_pause_keywords`, `bing_ads_update_campaign_budget`, `bing_ads_add_shared_negatives`, `bing_ads_create_uet_tag`, `bing_ads_create_conversion_goal`, `bing_ads_update_conversion_goal`) are **hidden from the tool list and refused at call time** unless `BING_ADS_MCP_WRITE=true` is set in the server environment. This is a safety gate against casual write actions -- for example, pausing a keyword or editing a budget based on a throwaway chat message. To make write changes, set the env var explicitly in your `.mcp.json` or shell profile for the session that needs it, then unset it afterwards. Read tools (list/report/performance) are always available.
 
 ## Usage
 
@@ -170,7 +170,11 @@ bing_ads_conversion_performance({ account_id: "176795228", start_date: "2026-06-
 - `bing_ads_list_accounts([name_filter], [account_id])` -- List/search accounts under the manager account (MCC), including linked accounts (e.g. sales prospects). No client repo required.
 
 ### Conversions
-- `bing_ads_list_conversion_goals([account_id])` -- List the conversion goals configured for an account (name, type, category, status).
+- `bing_ads_list_conversion_goals([account_id])` -- List the conversion goals configured for an account (name, type, category, status, scope, count type, tag, window, revenue and match rule).
+- `bing_ads_list_uet_tags([account_id])` -- List the UET tags an account can use (id, name, status, owner customer).
+- `bing_ads_create_uet_tag(name, [description], [account_id])` -- Create a UET tag; returns its id and tracking script. Write. Tags can never be deleted.
+- `bing_ads_create_conversion_goal(goal_type, name, goal_category, tag_id, ...)` -- Create a Url / Event / Duration / PagesViewedPerVisit goal (Account scope by default). Write.
+- `bing_ads_update_conversion_goal(goal_id, ...)` -- Edit a goal or pause it (`status: Paused`); Microsoft does not allow deleting goals via the API. Write.
 - `bing_ads_conversion_performance(start_date, end_date, [account_id], [campaign_ids], [by_goal])` -- Conversion performance per campaign using Microsoft's current (non-deprecated) columns. Set `by_goal: true` to break results out per conversion goal. Not applicable to Shopping campaigns.
 
 ### Performance Reports

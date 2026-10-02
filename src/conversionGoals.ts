@@ -165,11 +165,12 @@ export const GOAL_CATEGORIES = [
 ] as const;
 export const MANAGED_GOAL_TYPES = ["Url", "Event", "Duration", "PagesViewedPerVisit"] as const;
 export const EXPRESSION_OPERATORS = ["Equals", "Contains", "BeginsWith", "EndsWith", "RegularExpression"] as const;
-export const VALUE_OPERATORS = ["Equals", "GreaterThan", "LessThan", "GreaterThanEqualTo", "LessThanEqualTo"] as const;
+export const VALUE_OPERATORS = ["Equals", "GreaterThan", "LessThan"] as const;
 export const COUNT_TYPES = ["All", "Unique"] as const;
 export const GOAL_SCOPES = ["Account", "Customer"] as const;
 export const REVENUE_TYPES = ["NoValue", "FixedValue", "VariableValue"] as const;
-export const GOAL_STATUSES = ["Active", "Paused", "Deleted"] as const;
+// "Deleted" exists in Microsoft's docs but the API refuses it (InvalidConversionGoalStatus, verified live 2026-10-02): pausing is the only way to retire a goal.
+export const GOAL_STATUSES = ["Active", "Paused"] as const;
 
 export interface GoalSettings {
   name?: string;

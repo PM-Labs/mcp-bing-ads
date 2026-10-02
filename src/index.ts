@@ -369,6 +369,8 @@ class BingAdsManager {
     const url = `${CAMPAIGN_MGMT_BASE}/ConversionGoals/QueryByIds`;
     const body = {
       ConversionGoalTypes: "AppDownload,AppInstall,Duration,Event,OfflineConversion,PagesViewedPerVisit,Url",
+      // GoalCategory is only returned when asked for.
+      ReturnAdditionalFields: "GoalCategory",
     };
     const response = await this.apiCall(url, body, client, "listConversionGoals");
     return { raw: extractConversionGoalsArray(response), warnings: extractGoalWarnings(response) };
@@ -409,7 +411,7 @@ class BingAdsManager {
     return { goal_id: goalId, read_back: goals.find((g) => g.id === goalId) ?? null };
   }
 
-  async updateConversionGoal(client: ClientConfig, goalId: string, patch: UpdateGoalInput): Promise<{ goal_id: string; read_back: ConversionGoalSummary | null; note?: string }> {
+  async updateConversionGoal(client: ClientConfig, goalId: string, patch: UpdateGoalInput): Promise<{ goal_id: string; read_back: ConversionGoalSummary | null }> {
     if (!/^\d+$/.test(goalId || "")) throw new Error("goal_id must be a numeric conversion goal ID");
     const { raw } = await this.fetchGoalsRaw(client);
     const existing = raw.find((g) => String(g.Id) === goalId);
@@ -420,11 +422,7 @@ class BingAdsManager {
     if (errors.length > 0) throw new Error("Microsoft rejected the update: " + errors.join("; "));
     const { goals } = await this.listConversionGoals(client);
     const readBack = goals.find((g) => g.id === goalId) ?? null;
-    return {
-      goal_id: goalId,
-      read_back: readBack,
-      ...(readBack === null && patch.status === "Deleted" ? { note: "Goal no longer appears in the goal list, which is how Microsoft shows a deleted goal." } : {}),
-    };
+    return { goal_id: goalId, read_back: readBack };
   }
 
   // ============================================

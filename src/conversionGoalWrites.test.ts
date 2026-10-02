@@ -66,14 +66,14 @@ describe("buildAddGoalBody", () => {
       tag_id: "111",
       action_expression: "zzz_mcp_test",
       event_value: 5,
-      event_value_operator: "GreaterThanEqualTo",
+      event_value_operator: "GreaterThan",
     }) as any;
     expect(body.ConversionGoals[0]).toMatchObject({
       Type: "Event",
       ActionExpression: "zzz_mcp_test",
       ActionOperator: "Equals",
       Value: 5,
-      ValueOperator: "GreaterThanEqualTo",
+      ValueOperator: "GreaterThan",
     });
   });
 
@@ -153,9 +153,17 @@ describe("buildUpdateGoalBody", () => {
     expect(g).not.toHaveProperty("Revenue");
   });
 
-  it("sets status Paused and Deleted", () => {
+  it("sets status Paused and Active", () => {
     expect((buildUpdateGoalBody(EXISTING_EVENT, { status: "Paused" }) as any).ConversionGoals[0].Status).toBe("Paused");
-    expect((buildUpdateGoalBody(EXISTING_EVENT, { status: "Deleted" }) as any).ConversionGoals[0].Status).toBe("Deleted");
+    expect((buildUpdateGoalBody(EXISTING_EVENT, { status: "Active" }) as any).ConversionGoals[0].Status).toBe("Active");
+  });
+
+  it("rejects Deleted, which Microsoft refuses through the API", () => {
+    expect(() => buildUpdateGoalBody(EXISTING_EVENT, { status: "Deleted" as any })).toThrow(/status must be one of: Active, Paused/);
+  });
+
+  it("rejects the value operators Microsoft does not support", () => {
+    expect(() => buildAddGoalBody({ goal_type: "Event", name: "E", goal_category: "Other", tag_id: "1", event_value: 5, event_value_operator: "GreaterThanEqualTo" } as any)).toThrow(/event_value_operator/);
   });
 
   it("lets a patch override the match rule and settings", () => {

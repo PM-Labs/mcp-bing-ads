@@ -3,6 +3,8 @@
 ## [Unreleased]
 
 ### Added
+- `bing_ads_list_uet_tags`, `bing_ads_create_uet_tag`, `bing_ads_create_conversion_goal`, `bing_ads_update_conversion_goal` -- tracking setup: list/create UET tags, create Url/Event/Duration/PagesViewedPerVisit conversion goals, edit or pause a goal. The three new write tools are behind the write gate.
+- `bing_ads_list_conversion_goals` now also returns scope, count type, tag, conversion window, revenue, tracking status and the match rule (URL, event action/category/label/value, duration, pages), and asks Microsoft for `GoalCategory` (it is only returned on request; `category` was always null before).
 - `bing_ads_list_conversion_goals` -- list configured conversion goals for an account (name, type, category, status).
 - `bing_ads_conversion_performance` -- conversion performance per campaign, with an optional `by_goal` breakdown.
 
