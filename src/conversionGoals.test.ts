@@ -66,6 +66,39 @@ describe("mapConversionGoals", () => {
   });
 });
 
+describe("mapConversionGoals (detail fields)", () => {
+  it("adds the settings and match rule when Microsoft returns them", () => {
+    const [g] = mapConversionGoals([
+      {
+        Id: "176021739", Name: "PM | Submit Lead Form", Type: "Event", GoalCategory: "SubmitLeadForm", Status: "Active",
+        Scope: "Account", CountType: "Unique", TagId: "73011782", ConversionWindowInMinutes: 43200, ExcludeFromBidding: true,
+        TrackingStatus: "NoRecentConversions",
+        Revenue: { Type: "VariableValue", Value: 1, CurrencyCode: "AUD" },
+        ActionExpression: "lead", ActionOperator: "Equals", CategoryExpression: null, Value: null,
+      } as any,
+    ]);
+    expect(g).toMatchObject({
+      id: "176021739", scope: "Account", count_type: "Unique", tag_id: "73011782",
+      conversion_window_minutes: 43200, exclude_from_bidding: true, tracking_status: "NoRecentConversions",
+      revenue: { type: "VariableValue", value: 1, currency: "AUD" },
+      action_expression: "lead", action_operator: "Equals",
+    });
+    expect(g).not.toHaveProperty("category_expression");
+    expect(g).not.toHaveProperty("event_value");
+  });
+
+  it("maps Url, Duration and PagesViewedPerVisit specifics", () => {
+    const [u, d, p] = mapConversionGoals([
+      { Id: 1, Type: "Url", UrlExpression: "/thanks", UrlOperator: "Contains" } as any,
+      { Id: 2, Type: "Duration", MinimumDurationInSeconds: 60 } as any,
+      { Id: 3, Type: "PagesViewedPerVisit", MinimumPagesViewed: 3 } as any,
+    ]);
+    expect(u).toMatchObject({ url_expression: "/thanks", url_operator: "Contains" });
+    expect(d).toMatchObject({ minimum_duration_seconds: 60 });
+    expect(p).toMatchObject({ minimum_pages_viewed: 3 });
+  });
+});
+
 describe("extractGoalWarnings", () => {
   it("returns an empty array when PartialErrors is absent", () => {
     expect(extractGoalWarnings({ ConversionGoals: [] })).toEqual([]);

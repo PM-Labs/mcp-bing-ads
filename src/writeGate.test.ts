@@ -20,6 +20,7 @@ const READ_TOOLS = [
   "bing_ads_list_accounts",
   "bing_ads_list_conversion_goals",
   "bing_ads_conversion_performance",
+  "bing_ads_list_uet_tags",
 ];
 
 describe("writeGate", () => {

@@ -22,7 +22,12 @@ import { tools } from "./tools.js";
 import { filterTools, assertWriteAllowed, isWriteEnabled } from "./writeGate.js";
 import { withResilience, safeResponse, logger } from "./resilience.js";
 import { extractAccountInfoArray, mapAccountInfo, filterAccounts, type MappedAccount } from "./accountsFilter.js";
-import { extractConversionGoalsArray, mapConversionGoals, extractGoalWarnings, buildConversionColumns, type ConversionGoalSummary, type GoalWarning } from "./conversionGoals.js";
+import {
+  extractConversionGoalsArray, mapConversionGoals, extractGoalWarnings, buildConversionColumns,
+  buildAddGoalBody, buildUpdateGoalBody, extractCreatedGoalId, extractGoalWriteErrors,
+  type ConversionGoalSummary, type GoalWarning, type RawConversionGoal, type CreateGoalInput, type UpdateGoalInput,
+} from "./conversionGoals.js";
+import { extractUetTagsArray, mapUetTags, buildAddUetTagBody, extractCreatedUetTag, type UetTagSummary, type CreatedUetTag } from "./uetTags.js";
 import v8 from "v8";
 
 // CLI package info
@@ -258,14 +263,22 @@ class BingAdsManager {
     };
   }
 
-  private async apiCall(url: string, body: any, client: ClientConfig, operationName: string = "apiCall"): Promise<any> {
-    return withResilience(async () => {
+  // `retry: false` is for creates: a call that timed out client-side may still have succeeded,
+  // and a blind retry would then create a duplicate (UET tags cannot be deleted).
+  private async apiCall(
+    url: string,
+    body: any,
+    client: ClientConfig,
+    operationName: string = "apiCall",
+    options: { method?: "POST" | "PUT"; retry?: boolean } = {},
+  ): Promise<any> {
+    const attempt = async () => {
       const token = await this.getAccessToken();
       const headers = this.getHeaders(client);
       headers["Authorization"] = `Bearer ${token}`;
 
       const resp = await fetch(url, {
-        method: "POST",
+        method: options.method ?? "POST",
         headers,
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(30_000),
@@ -279,7 +292,8 @@ class BingAdsManager {
       }
 
       return await resp.json();
-    }, operationName);
+    };
+    return options.retry === false ? attempt() : withResilience(attempt, operationName);
   }
 
   private async customerApiCall(url: string, body: any, operationName: string): Promise<any> {
@@ -351,16 +365,66 @@ class BingAdsManager {
     return await this.apiCall(url, body, client, "listAdGroups");
   }
 
-  async listConversionGoals(client: ClientConfig): Promise<{ goals: ConversionGoalSummary[]; warnings: GoalWarning[] }> {
+  private async fetchGoalsRaw(client: ClientConfig): Promise<{ raw: RawConversionGoal[]; warnings: GoalWarning[] }> {
     const url = `${CAMPAIGN_MGMT_BASE}/ConversionGoals/QueryByIds`;
     const body = {
       ConversionGoalTypes: "AppDownload,AppInstall,Duration,Event,OfflineConversion,PagesViewedPerVisit,Url",
     };
     const response = await this.apiCall(url, body, client, "listConversionGoals");
-    const raw = extractConversionGoalsArray(response);
-    const goals = mapConversionGoals(raw);
-    const warnings = extractGoalWarnings(response);
-    return { goals, warnings };
+    return { raw: extractConversionGoalsArray(response), warnings: extractGoalWarnings(response) };
+  }
+
+  async listConversionGoals(client: ClientConfig): Promise<{ goals: ConversionGoalSummary[]; warnings: GoalWarning[] }> {
+    const { raw, warnings } = await this.fetchGoalsRaw(client);
+    return { goals: mapConversionGoals(raw), warnings };
+  }
+
+  // ============================================
+  // UET TAGS + CONVERSION GOAL WRITES
+  // ============================================
+
+  async listUetTags(client: ClientConfig): Promise<{ tags: UetTagSummary[] }> {
+    const response = await this.apiCall(`${CAMPAIGN_MGMT_BASE}/UetTags/QueryByIds`, { TagIds: null }, client, "listUetTags");
+    return { tags: mapUetTags(extractUetTagsArray(response)) };
+  }
+
+  async createUetTag(client: ClientConfig, name: string, description?: string): Promise<{ created: CreatedUetTag; read_back: UetTagSummary | null }> {
+    const body = buildAddUetTagBody(name, description);
+    const response = await this.apiCall(`${CAMPAIGN_MGMT_BASE}/UetTags`, body, client, "createUetTag", { retry: false });
+    const created = extractCreatedUetTag(response);
+    const { tags } = await this.listUetTags(client);
+    return { created, read_back: tags.find((t) => t.id === created.id) ?? null };
+  }
+
+  async createConversionGoal(client: ClientConfig, input: CreateGoalInput): Promise<{ goal_id: string; read_back: ConversionGoalSummary | null }> {
+    const body = buildAddGoalBody(input);
+    const { tags } = await this.listUetTags(client);
+    const tagId = String((body.ConversionGoals[0] as any).TagId);
+    if (!tags.some((t) => t.id === tagId)) {
+      throw new Error(`tag_id ${tagId} is not a UET tag this account can use. Run bing_ads_list_uet_tags to see the valid IDs.`);
+    }
+    const response = await this.apiCall(`${CAMPAIGN_MGMT_BASE}/ConversionGoals`, body, client, "createConversionGoal", { retry: false });
+    const goalId = extractCreatedGoalId(response);
+    const { goals } = await this.listConversionGoals(client);
+    return { goal_id: goalId, read_back: goals.find((g) => g.id === goalId) ?? null };
+  }
+
+  async updateConversionGoal(client: ClientConfig, goalId: string, patch: UpdateGoalInput): Promise<{ goal_id: string; read_back: ConversionGoalSummary | null; note?: string }> {
+    if (!/^\d+$/.test(goalId || "")) throw new Error("goal_id must be a numeric conversion goal ID");
+    const { raw } = await this.fetchGoalsRaw(client);
+    const existing = raw.find((g) => String(g.Id) === goalId);
+    if (!existing) throw new Error(`No conversion goal ${goalId} on this account (deleted goals are not listed). Run bing_ads_list_conversion_goals.`);
+    const body = buildUpdateGoalBody(existing, patch);
+    const response = await this.apiCall(`${CAMPAIGN_MGMT_BASE}/ConversionGoals`, body, client, "updateConversionGoal", { method: "PUT" });
+    const errors = extractGoalWriteErrors(response);
+    if (errors.length > 0) throw new Error("Microsoft rejected the update: " + errors.join("; "));
+    const { goals } = await this.listConversionGoals(client);
+    const readBack = goals.find((g) => g.id === goalId) ?? null;
+    return {
+      goal_id: goalId,
+      read_back: readBack,
+      ...(readBack === null && patch.status === "Deleted" ? { note: "Goal no longer appears in the goal list, which is how Microsoft shows a deleted goal." } : {}),
+    };
   }
 
   // ============================================
@@ -1075,6 +1139,52 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [{
             type: "text",
             text: JSON.stringify(safeResponse(result, "listConversionGoals"), null, 2),
+          }],
+        };
+      }
+
+      case "bing_ads_list_uet_tags": {
+        const client = resolveClient(args?.account_id as string);
+        const result = await adsManager.listUetTags(client);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(safeResponse(result, "listUetTags"), null, 2),
+          }],
+        };
+      }
+
+      case "bing_ads_create_uet_tag": {
+        const client = resolveClient(args?.account_id as string);
+        const result = await adsManager.createUetTag(client, args?.name as string, args?.description as string | undefined);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(result, null, 2),
+          }],
+        };
+      }
+
+      case "bing_ads_create_conversion_goal": {
+        const client = resolveClient(args?.account_id as string);
+        const { account_id: _acct, ...goalArgs } = (args ?? {}) as Record<string, unknown>;
+        const result = await adsManager.createConversionGoal(client, goalArgs as unknown as CreateGoalInput);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(result, null, 2),
+          }],
+        };
+      }
+
+      case "bing_ads_update_conversion_goal": {
+        const client = resolveClient(args?.account_id as string);
+        const { account_id: _acct, goal_id, ...patch } = (args ?? {}) as Record<string, unknown>;
+        const result = await adsManager.updateConversionGoal(client, goal_id as string, patch as UpdateGoalInput);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(result, null, 2),
           }],
         };
       }

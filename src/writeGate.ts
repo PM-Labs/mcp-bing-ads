@@ -9,7 +9,10 @@ import type { Tool } from "@modelcontextprotocol/sdk/types.js";
  */
 export const WRITE_TOOLS: ReadonlySet<string> = new Set([
   "bing_ads_add_shared_negatives",
+  "bing_ads_create_conversion_goal",
+  "bing_ads_create_uet_tag",
   "bing_ads_pause_keywords",
+  "bing_ads_update_conversion_goal",
   "bing_ads_update_campaign_budget",
 ]);
 

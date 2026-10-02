@@ -15,6 +15,10 @@ const EXPECTED_TOOL_NAMES = [
   "bing_ads_list_accounts",
   "bing_ads_list_conversion_goals",
   "bing_ads_conversion_performance",
+  "bing_ads_list_uet_tags",
+  "bing_ads_create_uet_tag",
+  "bing_ads_create_conversion_goal",
+  "bing_ads_update_conversion_goal",
 ];
 
 describe("Bing Ads MCP tools contract", () => {
