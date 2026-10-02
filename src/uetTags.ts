@@ -57,7 +57,15 @@ export function mapUetTags(raw: RawUetTag[]): UetTagSummary[] {
   return mapped;
 }
 
+export function findTagByName(tags: UetTagSummary[], name: string): UetTagSummary | null {
+  const wanted = (name ?? "").trim().toLowerCase();
+  return tags.find((t) => (t.name ?? "").trim().toLowerCase() === wanted) ?? null;
+}
+
 export function buildAddUetTagBody(name: string, description?: string): { UetTags: Array<{ Name: string; Description?: string }> } {
+  if (description !== undefined && (typeof description !== "string" || description.length > 1024)) {
+    throw new Error("description must be text of 1024 characters or fewer");
+  }
   const trimmed = typeof name === "string" ? name.trim() : "";
   if (!trimmed) throw new Error("name is required (1-100 characters)");
   if (trimmed.length > 100) throw new Error(`name is too long (${trimmed.length} characters; the limit is 100)`);

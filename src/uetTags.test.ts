@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  findTagByName,
   extractUetTagsArray,
   mapUetTags,
   buildAddUetTagBody,
@@ -67,6 +68,23 @@ describe("buildAddUetTagBody", () => {
     expect(() => buildAddUetTagBody("")).toThrow(/name/i);
     expect(() => buildAddUetTagBody("   ")).toThrow(/name/i);
     expect(() => buildAddUetTagBody("x".repeat(101))).toThrow(/100/);
+  });
+});
+
+describe("buildAddUetTagBody (description checks)", () => {
+  it("rejects a non-string or over-long description", () => {
+    expect(() => buildAddUetTagBody("T", 5 as any)).toThrow(/description/);
+    expect(() => buildAddUetTagBody("T", "x".repeat(1025))).toThrow(/description/);
+  });
+});
+
+describe("findTagByName", () => {
+  const tags = [{ id: "1", name: "Pathfinder AI UET Tag", description: null, status: null, owner_customer_id: null }];
+  it("matches case-insensitively and ignores surrounding spaces", () => {
+    expect(findTagByName(tags, "  pathfinder ai uet tag ")?.id).toBe("1");
+  });
+  it("returns null when there is no tag with that name", () => {
+    expect(findTagByName(tags, "other")).toBeNull();
   });
 });
 

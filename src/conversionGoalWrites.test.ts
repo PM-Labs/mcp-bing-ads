@@ -184,6 +184,29 @@ describe("buildUpdateGoalBody", () => {
     });
   });
 
+  it("keeps a Paused goal Paused when renaming it (full-replacement PUT must not reactivate)", () => {
+    const g = (buildUpdateGoalBody({ ...EXISTING_EVENT, Status: "Paused" }, { name: "Renamed" }) as any).ConversionGoals[0];
+    expect(g.Status).toBe("Paused");
+  });
+
+  it("keeps the existing revenue type when only revenue_value is patched", () => {
+    const g = (buildUpdateGoalBody({ ...EXISTING_EVENT, Revenue: { Type: "VariableValue", Value: 1, CurrencyCode: "AUD" } }, { revenue_value: 7 }) as any).ConversionGoals[0];
+    expect(g.Revenue).toEqual({ Type: "VariableValue", Value: 7 });
+  });
+
+  it("rejects match-rule fields that belong to a different goal type instead of ignoring them", () => {
+    expect(() => buildUpdateGoalBody(EXISTING_EVENT, { url_expression: "/x" })).toThrow(/url_expression.*Event/);
+    expect(() => buildUpdateGoalBody({ Id: "7", Type: "Url", Name: "U", UrlExpression: "/a" }, { action_expression: "x" })).toThrow(/action_expression.*Url/);
+    expect(() => buildAddGoalBody({ ...URL_GOAL, minimum_pages_viewed: 3 } as any)).toThrow(/minimum_pages_viewed.*Url/);
+  });
+
+  it("type-checks free-form inputs before they reach Microsoft", () => {
+    expect(() => buildUpdateGoalBody(EXISTING_EVENT, { exclude_from_bidding: "yes" as any })).toThrow(/exclude_from_bidding/);
+    expect(() => buildAddGoalBody({ ...URL_GOAL, url_expression: 5 as any })).toThrow(/url_expression/);
+    expect(() => buildAddGoalBody({ ...URL_GOAL, revenue_type: "FixedValue", revenue_value: 1, revenue_currency: 9 as any })).toThrow(/revenue_currency/);
+    expect(() => buildAddGoalBody({ goal_type: "Event", name: "E", goal_category: "Other", tag_id: "1", action_expression: "x".repeat(101) } as any)).toThrow(/action_expression/);
+  });
+
   it("rejects an empty patch", () => {
     expect(() => buildUpdateGoalBody(EXISTING_EVENT, {})).toThrow(/nothing to update/i);
   });

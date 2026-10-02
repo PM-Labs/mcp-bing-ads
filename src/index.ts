@@ -27,7 +27,7 @@ import {
   buildAddGoalBody, buildUpdateGoalBody, extractCreatedGoalId, extractGoalWriteErrors,
   type ConversionGoalSummary, type GoalWarning, type RawConversionGoal, type CreateGoalInput, type UpdateGoalInput,
 } from "./conversionGoals.js";
-import { extractUetTagsArray, mapUetTags, buildAddUetTagBody, extractCreatedUetTag, type UetTagSummary, type CreatedUetTag } from "./uetTags.js";
+import { extractUetTagsArray, mapUetTags, buildAddUetTagBody, extractCreatedUetTag, findTagByName, type UetTagSummary, type CreatedUetTag } from "./uetTags.js";
 import v8 from "v8";
 
 // CLI package info
@@ -390,15 +390,25 @@ class BingAdsManager {
     return { tags: mapUetTags(extractUetTagsArray(response)) };
   }
 
-  async createUetTag(client: ClientConfig, name: string, description?: string): Promise<{ created: CreatedUetTag; read_back: UetTagSummary | null }> {
+  async createUetTag(client: ClientConfig, name: string, description?: string): Promise<{ created: CreatedUetTag; read_back: UetTagSummary | null; warning?: string }> {
     const body = buildAddUetTagBody(name, description);
+    // Tags can never be deleted, so refuse a same-name tag (a re-run after a lost response would otherwise duplicate it).
+    const existing = findTagByName((await this.listUetTags(client)).tags, body.UetTags[0].Name);
+    if (existing) {
+      throw new Error(`A UET tag named "${body.UetTags[0].Name}" already exists (id ${existing.id}). Use it, or pick a different name -- tags cannot be deleted.`);
+    }
     const response = await this.apiCall(`${CAMPAIGN_MGMT_BASE}/UetTags`, body, client, "createUetTag", { retry: false });
     const created = extractCreatedUetTag(response);
-    const { tags } = await this.listUetTags(client);
-    return { created, read_back: tags.find((t) => t.id === created.id) ?? null };
+    // The tag exists now: if the read-back fails, still return its id and script rather than an error that invites a retry.
+    try {
+      const { tags } = await this.listUetTags(client);
+      return { created, read_back: tags.find((t) => t.id === created.id) ?? null };
+    } catch (err) {
+      return { created, read_back: null, warning: `Tag ${created.id} was created, but reading it back failed (${(err as Error).message}). Do not create it again; check bing_ads_list_uet_tags.` };
+    }
   }
 
-  async createConversionGoal(client: ClientConfig, input: CreateGoalInput): Promise<{ goal_id: string; read_back: ConversionGoalSummary | null }> {
+  async createConversionGoal(client: ClientConfig, input: CreateGoalInput): Promise<{ goal_id: string; read_back: ConversionGoalSummary | null; warning?: string }> {
     const body = buildAddGoalBody(input);
     const { tags } = await this.listUetTags(client);
     const tagId = String((body.ConversionGoals[0] as any).TagId);
@@ -407,12 +417,17 @@ class BingAdsManager {
     }
     const response = await this.apiCall(`${CAMPAIGN_MGMT_BASE}/ConversionGoals`, body, client, "createConversionGoal", { retry: false });
     const goalId = extractCreatedGoalId(response);
-    const { goals } = await this.listConversionGoals(client);
-    return { goal_id: goalId, read_back: goals.find((g) => g.id === goalId) ?? null };
+    try {
+      const { goals } = await this.listConversionGoals(client);
+      return { goal_id: goalId, read_back: goals.find((g) => g.id === goalId) ?? null };
+    } catch (err) {
+      return { goal_id: goalId, read_back: null, warning: `Goal ${goalId} was created, but reading it back failed (${(err as Error).message}). Do not create it again; check bing_ads_list_conversion_goals.` };
+    }
   }
 
-  async updateConversionGoal(client: ClientConfig, goalId: string, patch: UpdateGoalInput): Promise<{ goal_id: string; read_back: ConversionGoalSummary | null }> {
-    if (!/^\d+$/.test(goalId || "")) throw new Error("goal_id must be a numeric conversion goal ID");
+  async updateConversionGoal(client: ClientConfig, goalId: string, patch: UpdateGoalInput): Promise<{ goal_id: string; read_back: ConversionGoalSummary | null; warning?: string }> {
+    goalId = goalId === undefined || goalId === null ? "" : String(goalId).trim();
+    if (!/^\d+$/.test(goalId)) throw new Error("goal_id must be a numeric conversion goal ID");
     const { raw } = await this.fetchGoalsRaw(client);
     const existing = raw.find((g) => String(g.Id) === goalId);
     if (!existing) throw new Error(`No conversion goal ${goalId} on this account (deleted goals are not listed). Run bing_ads_list_conversion_goals.`);
@@ -420,9 +435,12 @@ class BingAdsManager {
     const response = await this.apiCall(`${CAMPAIGN_MGMT_BASE}/ConversionGoals`, body, client, "updateConversionGoal", { method: "PUT" });
     const errors = extractGoalWriteErrors(response);
     if (errors.length > 0) throw new Error("Microsoft rejected the update: " + errors.join("; "));
-    const { goals } = await this.listConversionGoals(client);
-    const readBack = goals.find((g) => g.id === goalId) ?? null;
-    return { goal_id: goalId, read_back: readBack };
+    try {
+      const { goals } = await this.listConversionGoals(client);
+      return { goal_id: goalId, read_back: goals.find((g) => g.id === goalId) ?? null };
+    } catch (err) {
+      return { goal_id: goalId, read_back: null, warning: `Goal ${goalId} was updated, but reading it back failed (${(err as Error).message}).` };
+    }
   }
 
   // ============================================

@@ -256,6 +256,32 @@ function buildRevenue(s: GoalSettings): Record<string, unknown> | undefined {
 
 type Goal = Record<string, unknown>;
 
+const MATCH_FIELDS: Record<string, readonly string[]> = {
+  Url: ["url_expression", "url_operator"],
+  Event: ["action_expression", "action_operator", "category_expression", "category_operator", "label_expression", "label_operator", "event_value", "event_value_operator"],
+  Duration: ["minimum_duration_seconds"],
+  PagesViewedPerVisit: ["minimum_pages_viewed"],
+};
+
+/** Reject inputs that do not apply to this goal type (rather than silently ignoring them) and wrong-typed free-form inputs. */
+function checkInputs(type: string, s: GoalSettings): void {
+  const given = s as Record<string, unknown>;
+  for (const [otherType, fields] of Object.entries(MATCH_FIELDS)) {
+    if (otherType === type) continue;
+    for (const f of fields) {
+      if (given[f] !== undefined) throw new Error(`${f} does not apply to a ${type} goal (it is a ${otherType} goal field)`);
+    }
+  }
+  for (const f of ["url_expression", "action_expression", "category_expression", "label_expression"]) {
+    const v = given[f];
+    if (v !== undefined && (typeof v !== "string" || v.length > 100 && f !== "url_expression")) {
+      throw new Error(`${f} must be text${f === "url_expression" ? "" : " of 100 characters or fewer"}`);
+    }
+  }
+  if (s.revenue_currency !== undefined && typeof s.revenue_currency !== "string") throw new Error("revenue_currency must be text, e.g. AUD");
+  if (s.exclude_from_bidding !== undefined && typeof s.exclude_from_bidding !== "boolean") throw new Error("exclude_from_bidding must be true or false");
+}
+
 /** Setting fields shared by every managed goal type. */
 function applyCommon(goal: Goal, type: string, s: GoalSettings): void {
   if (s.count_type !== undefined) goal.CountType = oneOf("count_type", s.count_type, COUNT_TYPES);
@@ -321,6 +347,7 @@ export function buildAddGoalBody(input: CreateGoalInput): { ConversionGoals: Goa
     TagId: checkTagId(input.tag_id),
     Scope: oneOf("scope", input.scope ?? "Account", GOAL_SCOPES),
   };
+  checkInputs(type, input);
   applyCommon(goal, type, input);
   applyMatchRule(goal, type, input, null);
   return { ConversionGoals: [goal] };
@@ -342,14 +369,22 @@ export function buildUpdateGoalBody(existing: RawConversionGoal, patch: UpdateGo
   goal.Name = patch.name !== undefined ? checkName(patch.name) : existing.Name;
   if (patch.goal_category !== undefined) goal.GoalCategory = oneOf("goal_category", patch.goal_category, GOAL_CATEGORIES);
   else if (present(existing.GoalCategory)) goal.GoalCategory = existing.GoalCategory;
+  checkInputs(type, patch);
+  // Full-replacement PUT: always send the status so a rename cannot reactivate a goal that was retired.
   if (patch.status !== undefined) goal.Status = oneOf("status", patch.status, GOAL_STATUSES);
+  else if (existing.Status === "Active" || existing.Status === "Paused") goal.Status = existing.Status;
   if (present(existing.TagId)) goal.TagId = String(existing.TagId);
   // Carry existing settings forward unless the patch overrides them.
   const merged: GoalSettings = {
     count_type: patch.count_type ?? (present(existing.CountType) ? String(existing.CountType) : undefined),
     conversion_window_minutes: patch.conversion_window_minutes ?? (existing.ConversionWindowInMinutes ?? undefined),
     exclude_from_bidding: patch.exclude_from_bidding ?? (existing.ExcludeFromBidding ?? undefined),
-    revenue_type: patch.revenue_type,
+    // A value-only patch keeps a VariableValue goal VariableValue instead of defaulting to FixedValue.
+    revenue_type: patch.revenue_type ?? (
+      (patch.revenue_value !== undefined || patch.revenue_currency !== undefined) && existing.Revenue?.Type && existing.Revenue.Type !== "NoValue"
+        ? existing.Revenue.Type
+        : undefined
+    ),
     revenue_value: patch.revenue_value,
     revenue_currency: patch.revenue_currency,
   };
