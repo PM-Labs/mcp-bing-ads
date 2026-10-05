@@ -19,6 +19,12 @@ app.use(express.urlencoded({ extended: false }));
 // Sessions: sessionId -> { proc, pending: Map<id, resolver>, buffer, timer }
 const sessions = new Map();
 const SESSION_TTL = 30 * 60 * 1000;
+// Per-request ceiling for a call relayed to the stdio server. Must exceed the
+// slowest tool: report tools wait up to 120s for Bing to generate a report
+// (waitForReport in src/index.ts). At the old 30s, every campaign-performance
+// call on larger accounts failed with "Request timed out" even though the
+// report would have completed (2026-10-05: 5 SEM accounts, any date range).
+const REQUEST_TIMEOUT_MS = 150_000;
 
 // --- OAuth 2.0 PKCE routes ---
 app.get('/.well-known/oauth-protected-resource', (req, res) => {
@@ -149,7 +155,7 @@ function sendRequest(session, message) {
     const timeout = setTimeout(() => {
       session.pending.delete(String(id));
       reject(new Error('Request timed out'));
-    }, 30_000);
+    }, REQUEST_TIMEOUT_MS);
     session.pending.set(String(id), (response) => {
       clearTimeout(timeout);
       resolve(response);
