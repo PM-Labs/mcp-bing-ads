@@ -28,6 +28,7 @@ import {
   type ConversionGoalSummary, type GoalWarning, type RawConversionGoal, type CreateGoalInput, type UpdateGoalInput,
 } from "./conversionGoals.js";
 import { extractUetTagsArray, mapUetTags, buildAddUetTagBody, extractCreatedUetTag, findTagByName, type UetTagSummary, type CreatedUetTag } from "./uetTags.js";
+import { decidePollOutcome } from "./reportPoll.js";
 import v8 from "v8";
 
 // CLI package info
@@ -621,11 +622,15 @@ class BingAdsManager {
 
     while (Date.now() - start < maxWaitMs) {
       const result = await this.pollReport(client, requestId);
+      const decision = decidePollOutcome(result.status, result.url);
 
-      if (result.status === "Success" && result.url) {
-        return await this.downloadAndParseCsv(result.url);
+      if (decision.action === "download") {
+        return await this.downloadAndParseCsv(decision.url);
       }
-      if (result.status === "Error") {
+      if (decision.action === "empty") {
+        return [];
+      }
+      if (decision.action === "error") {
         throw new Error("Report generation failed");
       }
 
